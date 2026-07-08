@@ -244,9 +244,9 @@ const TEMPLATE = /* html */ `
     color: var(--nc-accent, #7c3aed); display: grid; place-items: center;
     font-weight: 700; font-size: 1em; overflow: hidden; }
   .chip .meta { min-width: 0; line-height: 1.2; }
-  .chip .name { font-weight: 650; font-size: .88em; overflow: hidden;
+  .chip .name { display: block; font-weight: 650; font-size: .88em; overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
-  .chip .sub { font-size: .72em; color: var(--nc-faint, #a8a4b0); overflow: hidden;
+  .chip .sub { display: block; font-size: .72em; color: var(--nc-faint, #a8a4b0); overflow: hidden;
     text-overflow: ellipsis; white-space: nowrap; }
   .chip .out { flex: none; font: inherit; cursor: pointer; border: none;
     background: none; color: var(--nc-faint, #a8a4b0); font-size: 1.05em;
