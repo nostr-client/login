@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>login — nostr login + NIP-98 demo</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  h1 { font-size: 1.4rem; } h1 a { text-decoration: none; }
+  code, pre { background: rgba(127,127,127,.12); border-radius: 4px; padding: .1em .3em; }
+  pre { padding: .75em; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  section { margin: 2rem 0; }
+  button { font: inherit; padding: .4em .9em; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; }
+</style>
+</head>
+<body>
+<h1><a href="https://github.com/nostr-client/login">nostr-client / login</a></h1>
+<p>A no-build nostr login web component. Supports NIP-07 browser extensions,
+pasted keys, and guest keys — and exports <code>nip98Fetch</code> for
+NIP-98 HTTP auth. Inspired by
+<a href="https://github.com/melvincarvalho/xlogin">xlogin</a>.</p>
+
+<section>
+  <h2>1 · The component</h2>
+  <pre>&lt;script type="module" src="https://nostr-client.github.io/login/login.js"&gt;&lt;/script&gt;
+&lt;nostr-login&gt;&lt;/nostr-login&gt;</pre>
+  <nostr-login></nostr-login>
+</section>
+
+<section>
+  <h2>2 · Session state</h2>
+  <p>After login every component on the page can use
+  <code>window.nostrSigner</code> / <code>window.nostrPubkey</code>, or listen
+  for <code>nostr:login</code> / <code>nostr:logout</code> on
+  <code>window</code>:</p>
+  <pre id="state">logged out</pre>
+</section>
+
+<section>
+  <h2>3 · NIP-98 authenticated fetch</h2>
+  <p>Builds a signed <code>kind 27235</code> event and sends it as an
+  <code>Authorization: Nostr …</code> header:</p>
+  <button id="sign">Build NIP-98 header for this page</button>
+  <pre id="nip98">—</pre>
+</section>
+
+<script type="module">
+  import { nip98Header, npubEncode } from './login.js'
+
+  const state = document.getElementById('state')
+  const out = document.getElementById('nip98')
+
+  window.addEventListener('nostr:login', (e) => {
+    state.textContent =
+      'window.nostrPubkey = ' + e.detail.pubkey + '\n' +
+      'npub             = ' + npubEncode(e.detail.pubkey) + '\n' +
+      'signer type      = ' + e.detail.signer.type
+  })
+  window.addEventListener('nostr:logout', () => { state.textContent = 'logged out' })
+
+  document.getElementById('sign').onclick = async () => {
+    try {
+      const header = await nip98Header(location.href, 'GET')
+      const event = JSON.parse(atob(header.slice('Nostr '.length)))
+      out.textContent = 'Authorization: ' + header.slice(0, 80) + '…\n\ndecoded event:\n' + JSON.stringify(event, null, 2)
+    } catch (e) {
+      out.textContent = String(e.message || e)
+    }
+  }
+</script>
+</body>
+</html>
