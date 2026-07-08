@@ -210,6 +210,8 @@ const TEMPLATE = /* html */ `
   :host { display: inline-block;
     font-family: var(--nc-font, ui-sans-serif, system-ui, sans-serif);
     font-size: .9rem; color: var(--nc-ink, #201d26); }
+  :host([block]) { display: block; }
+  :host([block]) #root > button { width: 100%; }
   button { font: inherit; cursor: pointer; border: none; border-radius: 999px;
     background: var(--nc-accent, #7c3aed); color: var(--nc-accent-ink, #fff);
     padding: .5em 1.2em; font-weight: 600;
