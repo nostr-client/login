@@ -277,8 +277,21 @@ export class NostrLogin extends BaseElement {
   async _restore() {
     const session = loadSession()
     try {
-      if (session?.method === 'nip07' && window.nostr) {
-        await this._finish(extensionSigner(), { method: 'nip07' })
+      if (session?.method === 'nip07') {
+        if (window.nostr) {
+          await this._finish(extensionSigner(), { method: 'nip07' })
+          return
+        }
+        // extensions can inject window.nostr AFTER we load — show the button,
+        // keep watching, and complete the login the moment it appears
+        this._renderLoggedOut()
+        for (let i = 0; i < 40 && this.isConnected && !this.pubkey; i++) {
+          await new Promise((r) => setTimeout(r, 250))
+          if (window.nostr) {
+            await this._finish(extensionSigner(), { method: 'nip07' })
+            return
+          }
+        }
         return
       }
       if (session?.method === 'local' && session.secretHex) {
