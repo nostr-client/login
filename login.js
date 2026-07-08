@@ -390,7 +390,10 @@ export class NostrLogin extends BaseElement {
 
     const avatar = document.createElement('span')
     avatar.className = 'avatar'
-    avatar.textContent = '☺'
+    const hue = parseInt(this.pubkey.slice(0, 4), 16) % 360
+    avatar.style.background = `linear-gradient(135deg, hsl(${hue} 62% 60%), hsl(${(hue + 55) % 360} 62% 44%))`
+    avatar.style.color = '#fff'
+    avatar.textContent = npub.slice(5, 6).toUpperCase()
 
     const meta = document.createElement('span')
     meta.className = 'meta'
