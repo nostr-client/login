@@ -234,9 +234,25 @@ const TEMPLATE = /* html */ `
     background: var(--nc-inset, #f4f2ee); color: inherit; min-width: 0; flex: 1; }
   input:focus { outline: 2px solid var(--nc-accent-soft, #f2ecfd);
     border-color: var(--nc-accent, #7c3aed); }
-  .id { font-family: var(--nc-mono, ui-monospace, monospace);
-    color: var(--nc-soft, #6d6a76); background: var(--nc-inset, #f4f2ee);
-    border-radius: 999px; padding: .35em .8em; font-size: .85em; }
+  .chip { display: flex; align-items: center; gap: .6em; max-width: 16rem;
+    background: var(--nc-surface, #fff); border: 1px solid var(--nc-line, #e9e6e0);
+    border-radius: 999px; padding: .3em .45em .3em .3em; cursor: pointer;
+    transition: background .15s ease; }
+  .chip:hover { background: var(--nc-inset, #f4f2ee); }
+  .chip .avatar { width: 2.1em; height: 2.1em; border-radius: 50%; flex: none;
+    object-fit: cover; background: var(--nc-accent-soft, #f2ecfd);
+    color: var(--nc-accent, #7c3aed); display: grid; place-items: center;
+    font-weight: 700; font-size: 1em; overflow: hidden; }
+  .chip .meta { min-width: 0; line-height: 1.2; }
+  .chip .name { font-weight: 650; font-size: .88em; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .chip .sub { font-size: .72em; color: var(--nc-faint, #a8a4b0); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .chip .out { flex: none; font: inherit; cursor: pointer; border: none;
+    background: none; color: var(--nc-faint, #a8a4b0); font-size: 1.05em;
+    border-radius: 50%; width: 1.9em; height: 1.9em; display: grid; place-items: center; }
+  .chip .out:hover { background: var(--nc-accent-soft, #f2ecfd);
+    color: var(--nc-danger, #c93a3a); }
   .err { color: var(--nc-danger, #c93a3a); font-size: .8rem; }
   .hint { font-size: .75rem; color: var(--nc-faint, #a8a4b0); line-height: 1.4; }
 </style>
@@ -352,19 +368,63 @@ export class NostrLogin extends BaseElement {
 
   _renderLoggedIn() {
     this.root.innerHTML = ''
-    const row = document.createElement('div')
-    row.className = 'row'
-    const id = document.createElement('span')
-    id.className = 'id'
     const npub = npubEncode(this.pubkey)
-    id.textContent = npub.slice(0, 12) + '…' + npub.slice(-4)
-    id.title = npub
+    const short = npub.slice(0, 9) + '…' + npub.slice(-4)
+
+    const chip = document.createElement('div')
+    chip.className = 'chip'
+    chip.title = npub
+
+    const avatar = document.createElement('span')
+    avatar.className = 'avatar'
+    avatar.textContent = '☺'
+
+    const meta = document.createElement('span')
+    meta.className = 'meta'
+    const name = document.createElement('span')
+    name.className = 'name'
+    name.textContent = short
+    const sub = document.createElement('span')
+    sub.className = 'sub'
+    sub.textContent = this.signer?.type === 'nip07' ? 'extension' : 'local key'
+    meta.append(name, sub)
+
     const out = document.createElement('button')
-    out.className = 'ghost'
-    out.textContent = 'Logout'
-    out.onclick = () => this._logout()
-    row.append(id, out)
-    this.root.append(row)
+    out.className = 'out'
+    out.title = 'Log out'
+    out.textContent = '⏻'
+    out.onclick = (e) => { e.stopPropagation(); this._logout() }
+
+    chip.append(avatar, meta, out)
+    chip.onclick = () => {
+      this.dispatchEvent(new CustomEvent('nostr:profile-click', {
+        detail: { pubkey: this.pubkey }, bubbles: true, composed: true, cancelable: true,
+      }))
+    }
+    this.root.append(chip)
+
+    // enhance with the profile (lazy; falls back silently to npub + method)
+    const pubkey = this.pubkey
+    import('https://nostr-client.github.io/note/note.js').then(({ profiles }) => {
+      profiles().get(pubkey, (profile) => {
+        if (this.pubkey !== pubkey || !profile) return
+        const display = profile.display_name || profile.name
+        if (display) {
+          name.textContent = display
+          sub.textContent = profile.nip05?.replace(/^_@/, '') || short
+        }
+        if (profile.picture?.startsWith('https://')) {
+          avatar.textContent = ''
+          const img = document.createElement('img')
+          img.src = profile.picture
+          img.alt = ''
+          img.style.cssText = 'width:100%;height:100%;object-fit:cover'
+          avatar.append(img)
+        } else if (display) {
+          avatar.textContent = [...display][0].toUpperCase()
+        }
+      })
+    }).catch(() => {})
   }
 }
 
