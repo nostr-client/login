@@ -232,7 +232,7 @@ const TEMPLATE = /* html */ `
   input { font: inherit; padding: .5em .7em; border-radius: 999px;
     border: 1px solid var(--nc-line, #e9e6e0);
     background: var(--nc-inset, #f4f2ee); color: inherit; min-width: 0; flex: 1; }
-  input:focus { outline: 2px solid var(--nc-accent-soft, #f2ecfd);
+  input:focus { outline: 2px solid var(--nc-accent, #7a5cff); outline-offset: 1px;
     border-color: var(--nc-accent, #7c3aed); }
   .chip { display: flex; align-items: center; gap: .6em; max-width: 16rem;
     background: var(--nc-surface, #fff); border: 1px solid var(--nc-line, #e9e6e0);
@@ -309,7 +309,27 @@ export class NostrLogin extends BaseElement {
     this._renderLoggedIn()
   }
 
+  /**
+   * For a local key, localStorage is the ONLY copy of the nsec — and (wallet.js)
+   * that same key is the taproot spending key, so logging out destroys the
+   * identity and any sats in the tip wallet, permanently. Offer the backup first.
+   */
   _logout() {
+    const secret = this.signer?.type === 'local' ? this.signer.secretHex : null
+    if (secret) {
+      const nsec = (() => { try { return nsecEncode(secret) } catch { return null } })()
+      const ok = confirm(
+        'Log out of this local key?\n\n' +
+        'This key exists ONLY in this browser. Logging out erases it — your account ' +
+        'and anything in its tip wallet are gone for good, with no way to recover them.\n\n' +
+        'Press OK to copy your nsec to the clipboard first, then confirm again.')
+      if (!ok) return
+      if (nsec) {
+        try { navigator.clipboard?.writeText(nsec) } catch {}
+        if (!confirm('Your nsec is on the clipboard. Save it somewhere safe NOW.\n\n' +
+                     'Confirm log out?')) return
+      } else if (!confirm('Could not encode your key for backup. Log out anyway and lose it?')) return
+    }
     clearSession()
     this.signer = null
     this.pubkey = null
@@ -408,6 +428,7 @@ export class NostrLogin extends BaseElement {
     const out = document.createElement('button')
     out.className = 'out'
     out.title = 'Log out'
+    out.setAttribute('aria-label', 'Log out')
     out.textContent = '⏻'
     out.onclick = (e) => { e.stopPropagation(); this._logout() }
 
