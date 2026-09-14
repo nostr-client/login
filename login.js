@@ -272,7 +272,25 @@ export class NostrLogin extends BaseElement {
     this.signer = null
   }
 
-  connectedCallback() { this._restore() }
+  connectedCallback() {
+    this._onAuthChange = (e) => {
+      // another instance (or another component) changed the session
+      if (e.type === 'nostr:logout') {
+        if (!this.signer) return
+        this.signer = null; this.pubkey = null; this._renderLoggedOut()
+      } else if (e.detail?.pubkey && e.detail.pubkey !== this.pubkey) {
+        this.signer = window.nostrSigner; this.pubkey = e.detail.pubkey; this._renderLoggedIn()
+      }
+    }
+    window.addEventListener('nostr:login', this._onAuthChange)
+    window.addEventListener('nostr:logout', this._onAuthChange)
+    this._restore()
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('nostr:login', this._onAuthChange)
+    window.removeEventListener('nostr:logout', this._onAuthChange)
+  }
 
   async _restore() {
     const session = loadSession()
@@ -314,7 +332,7 @@ export class NostrLogin extends BaseElement {
    * that same key is the taproot spending key, so logging out destroys the
    * identity and any sats in the tip wallet, permanently. Offer the backup first.
    */
-  _logout() {
+  async _logout() {
     const secret = this.signer?.type === 'local' ? this.signer.secretHex : null
     if (secret) {
       const nsec = (() => { try { return nsecEncode(secret) } catch { return null } })()
@@ -325,9 +343,14 @@ export class NostrLogin extends BaseElement {
         'Press OK to copy your nsec to the clipboard first, then confirm again.')
       if (!ok) return
       if (nsec) {
-        try { navigator.clipboard?.writeText(nsec) } catch {}
-        if (!confirm('Your nsec is on the clipboard. Save it somewhere safe NOW.\n\n' +
-                     'Confirm log out?')) return
+        let copied = false
+        try { await navigator.clipboard.writeText(nsec); copied = true } catch { copied = false }
+        // never claim a backup we did not actually make
+        const msg = copied
+          ? 'Your nsec is on the clipboard. Save it somewhere safe NOW.\n\nConfirm log out?'
+          : 'COULD NOT COPY to the clipboard. Here is your key — write it down before continuing:\n\n'
+            + nsec + '\n\nConfirm log out?'
+        if (!confirm(msg)) return
       } else if (!confirm('Could not encode your key for backup. Log out anyway and lose it?')) return
     }
     clearSession()
